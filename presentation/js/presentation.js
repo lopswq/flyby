@@ -51,8 +51,10 @@ const FlybyModel = (() => {
 (() => {
   /* === 고정 무대와 단일 애니메이션 루프 상태 === */
   const slides=[...document.querySelectorAll('.slide')],deck=document.getElementById('deck');
+  // 현재 요청은 디자인 검토만 포함함. 움직임은 사용자 요청 전까지 재생하지 않음.
+  const DESIGN_ONLY=true;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  const COLORS={mint:'#b4e9ce',amber:'#e7b788',muted:'#829aa5',ink:'#e8efed',bad:'#c99286'};
+  const COLORS={mint:'#2859c5',amber:'#cc8531',muted:'#71839b',ink:'#182d49',bad:'#b85a53'};
   const FONT='"Malgun Gothic","Apple SD Gothic Neo",sans-serif';
   // 11장은 낮은 접근 속력으로 가감속 차이를 키우되 중력 계산과 같은 거리의 비교 유지.
   const flights={gain:FlybyModel.create(1.3),loss:FlybyModel.create(-1.3),turn:FlybyModel.create(0),stationary:FlybyModel.create(0,{speed:1.35,impact:-8})};
@@ -60,7 +62,7 @@ const FlybyModel = (() => {
   const STATIONARY_MOVE=8;
   const textures=new Map(),frames=new Map(),paths=new Map();
   let index=0,step=0,elapsed=0,lastTime=null,rafId=0,context=null,canvas=null,width=0,height=0;
-  // 움직임은 03·07·11·12장에만 사용함. duration=0인 장은 대표 정지 그림을 그림.
+  // 아래 시간값은 기존 장면의 참고값임. DESIGN_ONLY 단계에서는 모든 장을 정적으로 표시함.
   // still은 정지 그림에 사용할 개념 장면의 시점이며 시간에 따라 진행하지 않음.
   const SCENES=Object.freeze({
     mission:{duration:0,still:11,chapter:'질문'},why:{duration:0,chapter:'질문'},direct:{duration:5,chapter:'출발'},
@@ -144,15 +146,29 @@ const FlybyModel = (() => {
     textures.set(kind,image);return image;
   }
 
-  /** 행성 또는 두 엽으로 단순화한 67P 혜성 그림. 크기는 설명용 확대임. */
+  /** 정적인 PPT 도식에 맞춰 행성을 평면 색상과 간단한 무늬로 표시함. */
   function planet(ctx,x,y,r,kind='jupiter',name='') {
     ctx.save();
+    const fill=kind==='earth'?'#dceafa':kind==='mars'?'#f2d4ca':kind==='comet'?'#d7dde7':'#f0dfc5';
+    const stroke=kind==='earth'?'#789ac7':kind==='mars'?'#bd8a78':'#b29b79';
     if(kind==='comet') {
-      const glow=ctx.createRadialGradient(x,y,0,x,y,r*2.5);glow.addColorStop(0,'#b4e9ce16');glow.addColorStop(1,'#b4e9ce00');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,r*2.5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#949d98';ctx.beginPath();ctx.ellipse(x-r*.25,y+r*.15,r*.8,r*.57,-.35,0,Math.PI*2);ctx.fill();ctx.fillStyle='#a9b1a7';ctx.beginPath();ctx.ellipse(x+r*.45,y-r*.38,r*.55,r*.45,.3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=fill;ctx.strokeStyle='#8290a5';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(x-r*.2,y+r*.1,r*.75,r*.55,-.35,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.ellipse(x+r*.42,y-r*.32,r*.5,r*.43,.3,0,Math.PI*2);ctx.fill();ctx.stroke();
     } else {
-      const glow=ctx.createRadialGradient(x,y,r*.8,x,y,r*1.45);glow.addColorStop(0,'#a5d8d81a');glow.addColorStop(1,'#a5d8d800');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(x,y,r*1.45,0,Math.PI*2);ctx.fill();
-      ctx.drawImage(texture(kind),x-r*1.046,y-r*1.046,r*2.092,r*2.092);ctx.strokeStyle='#d2ded32b';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.save();ctx.clip();
+      if(kind==='earth') {
+        ctx.fillStyle='#a7c9bb';ctx.beginPath();ctx.moveTo(x-r*.65,y-r*.45);
+        ctx.bezierCurveTo(x+r*.1,y-r*.9,x-r*.1,y-r*.1,x+r*.25,y);
+        ctx.bezierCurveTo(x+r*.1,y+r*.65,x-r*.45,y+r*.4,x-r*.35,y+r*.05);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.ellipse(x+r*.45,y+r*.4,r*.19,r*.13,0,0,Math.PI*2);ctx.fill();
+      } else {
+        ctx.strokeStyle=kind==='mars'?'#d6aa99':'#d7c2a5';ctx.lineWidth=Math.max(3,r*.15);
+        for(const offset of [-.35,.1,.52]){ctx.beginPath();ctx.moveTo(x-r,y+r*offset);ctx.lineTo(x+r,y+r*offset);ctx.stroke();}
+      }
+      ctx.restore();
     }
     if(name)label(ctx,name,x,y+r+35,COLORS.ink,25,'center');ctx.restore();
   }
@@ -160,10 +176,10 @@ const FlybyModel = (() => {
   /** 작은 탐사선과 필요한 출발 장면에 한해서 엔진 분사 표시. */
   function probe(ctx,p,angle=0,flame=false,color=COLORS.mint,scale=1) {
     ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);ctx.scale(scale,scale);
-    if(flame){const power=typeof flame==='number'?flame:1;ctx.fillStyle='#e7b788aa';ctx.beginPath();ctx.moveTo(-8,-5);ctx.lineTo(-22-13*power,0);ctx.lineTo(-8,5);ctx.fill();}
+    if(flame){const power=typeof flame==='number'?flame:1;ctx.fillStyle='#cc8531aa';ctx.beginPath();ctx.moveTo(-8,-5);ctx.lineTo(-22-13*power,0);ctx.lineTo(-8,5);ctx.fill();}
     ctx.strokeStyle=color;ctx.lineWidth=1;ctx.fillStyle='#3b6072';ctx.fillRect(-5,-21,10,13);ctx.strokeRect(-5,-21,10,13);ctx.fillRect(-5,8,10,13);ctx.strokeRect(-5,8,10,13);
-    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(0,8);ctx.stroke();ctx.fillStyle='#d7e2dc';ctx.fillRect(-7,-5,14,10);
-    ctx.fillStyle='#ece3c9';ctx.beginPath();ctx.ellipse(9,0,2,7,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(0,8);ctx.stroke();ctx.fillStyle='#ffffff';ctx.fillRect(-7,-5,14,10);
+    ctx.fillStyle='#c9d6e8';ctx.beginPath();ctx.ellipse(9,0,2,7,0,0,Math.PI*2);ctx.fill();ctx.restore();
   }
 
   /** 중력 방향이나 목표 지점에만 사용하는 간단한 화살표. 벡터 패널은 아님. */
@@ -204,11 +220,11 @@ const FlybyModel = (() => {
     for(let i=0;i<=count;i+=9)points.push(layout.project(flight.states[i]));points.push(p);
     if(planetTrail) {
       const origin=layout.project(flight.states[0],true),destination=layout.project(flight.states[flight.states.length-1],true);
-      polyline(ctx,[origin,destination],'#e7b78845',true);
+      polyline(ctx,[origin,destination],'#cc853145',true);
       polyline(ctx,[origin,body],COLORS.amber,false,2);
       label(ctx,'행성의 공전 방향',w*.5,h-35,COLORS.amber,24,'center');
       for(let i=0;i<count;i+=Math.max(1,Math.floor(flight.states.length/10))) {
-        const q=layout.project(flight.states[i],true);ctx.fillStyle='#e7b78870';ctx.beginPath();ctx.arc(q.x,q.y,4,0,Math.PI*2);ctx.fill();
+        const q=layout.project(flight.states[i],true);ctx.fillStyle='#cc853170';ctx.beginPath();ctx.arc(q.x,q.y,4,0,Math.PI*2);ctx.fill();
       }
     }
     polyline(ctx,points,COLORS.mint,false,2.5);
@@ -243,7 +259,7 @@ const FlybyModel = (() => {
     for(const lane of lanes) {
       const p={x:x0+lane.speed*t*scale,y:lane.y};
       label(ctx,lane.name,x0,lane.y-65,lane.color,29);
-      polyline(ctx,[{x:x0,y:lane.y},{x:w-100,y:lane.y}],'#829aa535',true);
+      polyline(ctx,[{x:x0,y:lane.y},{x:w-100,y:lane.y}],'#71839b35',true);
       polyline(ctx,[{x:x0,y:lane.y},p],lane.color,false,2.5);
       // 같은 0.7초 간격의 위치 흔적. 감속 후에는 점과 실제 이동량이 함께 좁아짐.
       for(let mark=0;mark<=t;mark+=.7) {ctx.fillStyle=lane.color;ctx.beginPath();ctx.arc(x0+lane.speed*mark*scale,lane.y,3.5,0,Math.PI*2);ctx.fill();}
@@ -256,7 +272,7 @@ const FlybyModel = (() => {
   function turning(ctx,w,h,time) {
     const flight=flights.turn,angle=.45,layout=flightFrame(flight,'sun',w,h,angle);
     const start=flight.states[0],origin=layout.project(start),v=rotate(start.vx,start.vy,angle);
-    polyline(ctx,[origin,{x:origin.x+v.x*layout.scale*flight.duration,y:origin.y-v.y*layout.scale*flight.duration}],'#829aa54d',true);
+    polyline(ctx,[origin,{x:origin.x+v.x*layout.scale*flight.duration,y:origin.y-v.y*layout.scale*flight.duration}],'#71839b4d',true);
     flyby(ctx,w,h,time,{effect:'turn',angle,markers:true});
     label(ctx,'원래 방향에서 휘어지는 경로',w*.5,h-65,COLORS.mint,26,'center');
   }
@@ -274,7 +290,7 @@ const FlybyModel = (() => {
   /** 정의 전환 장은 행성 그림을 반복하지 않고 여정선과 제목에 집중함. */
   function definitionArt(ctx,w,h,time) {
     const route=curve(`definition-${w}`,[{x:35,y:h*.8},{x:w*.42,y:h*.8},{x:w*.27,y:h*.3},{x:w-60,y:h*.16}]);
-    polyline(ctx,route.samples,'#b4e9ce35',false,2);
+    polyline(ctx,route.samples,'#2859c535',false,2);
     const p=trace(ctx,route,clamp(time/8));probe(ctx,p,p.angle,false,COLORS.mint,1.6);
   }
 
@@ -285,11 +301,11 @@ const FlybyModel = (() => {
     const earth={x:125,y:h*.58},jupiter={x:w*.58,y:h*.55};
     const a=curve(`mission-a-${w}`, [{x:earth.x+75,y:earth.y+20},{x:w*.3,y:h*.89},{x:jupiter.x-210,y:h*.9},{x:jupiter.x-120,y:jupiter.y}]);
     const b=curve(`mission-b-${w}`, [{x:earth.x+75,y:earth.y-20},{x:w*.36,y:h*.05},{x:w*.62,y:h*.08},{x:w-85,y:h*.19}]);
-    polyline(ctx,a.samples,'#70858c80',true);polyline(ctx,b.samples,'#b4e9ce55');
+    polyline(ctx,a.samples,'#71839b80',true);polyline(ctx,b.samples,'#2859c555');
     const pa=trace(ctx,a,clamp(t/9),COLORS.muted,true),pb=trace(ctx,b,clamp(t/7),COLORS.mint);
     planet(ctx,earth.x,earth.y,57,'earth','지구');planet(ctx,jupiter.x,jupiter.y,71,'jupiter','목성');
     if(t>=9) {
-      const angle=Math.PI+(t-9)*.7;ctx.save();ctx.strokeStyle='#829aa544';ctx.setLineDash([5,8]);ctx.beginPath();ctx.ellipse(jupiter.x,jupiter.y,120,76,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+      const angle=Math.PI+(t-9)*.7;ctx.save();ctx.strokeStyle='#71839b44';ctx.setLineDash([5,8]);ctx.beginPath();ctx.ellipse(jupiter.x,jupiter.y,120,76,0,0,Math.PI*2);ctx.stroke();ctx.restore();
       probe(ctx,{x:jupiter.x+120*Math.cos(angle),y:jupiter.y+76*Math.sin(angle)},angle+Math.PI/2,false,COLORS.muted);
     } else probe(ctx,pa,pa.angle,false,COLORS.muted);
     probe(ctx,pb,pb.angle,false,COLORS.mint);
@@ -300,7 +316,7 @@ const FlybyModel = (() => {
   /** 지구 탈출을 처음 생각하는 직선 안내도와 엔진 분사. */
   function direct(ctx,w,h,t) {
     const earth={x:160,y:h*.5},end={x:w-160,y:h*.5},fraction=clamp(t/7)*.57;
-    polyline(ctx,[{x:earth.x+95,y:earth.y},end],'#829aa55e',true);
+    polyline(ctx,[{x:earth.x+95,y:earth.y},end],'#71839b5e',true);
     const p=mix({x:earth.x+125,y:earth.y},end,fraction);
     planet(ctx,earth.x,earth.y,100,'earth','지구');planet(ctx,end.x,end.y,49,'mars','목적지');
     probe(ctx,p,0,1+clamp(t/7)*1.5,COLORS.mint,1.7);label(ctx,'탐사선',p.x,p.y-55,COLORS.mint,25,'center');
@@ -337,7 +353,7 @@ const FlybyModel = (() => {
     const start={x:125,y:h*.25},end={x:w-120,y:h*.25},body={x:w*.49,y:h*.76};
     const route=curve(`routes-${w}`, [start,{x:w*.3,y:h},{x:w*.62,y:h*.4},end]);
     ctx.save();ctx.globalAlpha=conclusion ? .3 : 1;polyline(ctx,[start,end],COLORS.muted,true);ctx.restore();
-    polyline(ctx,route.samples,'#b4e9ce50');
+    polyline(ctx,route.samples,'#2859c550');
     const a=mix(start,end,clamp(t/11));
     // 설명용 경유 경로는 만남 이후 같은 시간에 이동하는 거리가 더 커지도록 설정함.
     const progress=t<5?clamp(t/5)*.48:.48+clamp((t-5)/3)*.52;
@@ -375,7 +391,7 @@ const FlybyModel = (() => {
     ctx.save();ctx.globalAlpha=corrected?smooth((t-6)/.6):1-smooth((t-5)/1);
     const body={x:w*(corrected?.25+phase*.4:.56+phase*.25),y:h*.37};
     const route=curve(`timing-${w}`,[{x:80,y:h*.83},{x:w*.35,y:h*.77},{x:w*.47,y:h*.46},{x:w-110,y:h*.18}]);
-    polyline(ctx,[{x:100,y:body.y},{x:w-90,y:body.y}],'#e7b78840',true);
+    polyline(ctx,[{x:100,y:body.y},{x:w-90,y:body.y}],'#cc853140',true);
     planet(ctx,body.x,body.y,48,'jupiter','행성');const p=trace(ctx,route,phase);probe(ctx,p,p.angle,false,COLORS.mint,1.2);
     ctx.restore();label(ctx,corrected?'도착 시각을 맞추면':'행성은 이미 지나간 뒤',w*.5,h-65,corrected?COLORS.mint:COLORS.muted,27,'center');
   }
@@ -396,8 +412,8 @@ const FlybyModel = (() => {
   /** 태양·지구·혜성을 배치하고 아직 전체 여정을 보여주지 않는 도입 장면. */
   function rosetta(ctx,w,h,t) {
     const sun={x:w*.38,y:h*.45};
-    ctx.save();ctx.strokeStyle='#b4e9ce22';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(sun.x,sun.y,w*.29,h*.29,-.15,0,Math.PI*2);ctx.stroke();ctx.restore();
-    const glow=ctx.createRadialGradient(sun.x,sun.y,4,sun.x,sun.y,100);glow.addColorStop(0,'#f3d4a855');glow.addColorStop(1,'#e7b78800');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(sun.x,sun.y,100,0,Math.PI*2);ctx.fill();ctx.fillStyle=COLORS.amber;ctx.beginPath();ctx.arc(sun.x,sun.y,24,0,Math.PI*2);ctx.fill();
+    ctx.save();ctx.strokeStyle='#2859c522';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(sun.x,sun.y,w*.29,h*.29,-.15,0,Math.PI*2);ctx.stroke();ctx.restore();
+    const glow=ctx.createRadialGradient(sun.x,sun.y,4,sun.x,sun.y,100);glow.addColorStop(0,'#f3d4a855');glow.addColorStop(1,'#cc853100');ctx.fillStyle=glow;ctx.beginPath();ctx.arc(sun.x,sun.y,100,0,Math.PI*2);ctx.fill();ctx.fillStyle=COLORS.amber;ctx.beginPath();ctx.arc(sun.x,sun.y,24,0,Math.PI*2);ctx.fill();
     const earth={x:w*.28,y:h*.69};planet(ctx,earth.x,earth.y,44,'earth','지구');planet(ctx,w*.85,h*.19,46,'comet','67P');
     const path=curve(`rosetta-${w}`,[{x:earth.x+55,y:earth.y-10},{x:w*.51,y:h*.62},{x:w*.59,y:h*.38},{x:w*.66,y:h*.35}]);
     const p=trace(ctx,path,clamp(t/7));probe(ctx,p,p.angle,false,COLORS.mint,1.25);
@@ -432,9 +448,9 @@ const FlybyModel = (() => {
   /** 행성 이름을 역처럼 사용하되 탐사선은 각 지점에서 멈추지 않고 통과함. */
   function stations(ctx,w,h,t) {
     const y=h*.46,first=140,last=w-140,pct=clamp(t/12),x=first+(last-first)*pct;
-    polyline(ctx,[{x:first,y},{x:last,y}],'#56777e',false,4);polyline(ctx,[{x:first,y},{x,y}],COLORS.mint,false,4);
+    polyline(ctx,[{x:first,y},{x:last,y}],'#a7b9d2',false,4);polyline(ctx,[{x:first,y},{x,y}],COLORS.mint,false,4);
     ROSETTA_EVENTS.forEach((event,i)=>{
-      const px=first+(last-first)*i/5;ctx.fillStyle='#0b1921';ctx.strokeStyle=i===2?COLORS.amber:COLORS.mint;ctx.lineWidth=3;ctx.beginPath();ctx.arc(px,y,12,0,Math.PI*2);ctx.fill();ctx.stroke();
+      const px=first+(last-first)*i/5;ctx.fillStyle='#ffffff';ctx.strokeStyle=i===2?COLORS.amber:COLORS.mint;ctx.lineWidth=3;ctx.beginPath();ctx.arc(px,y,12,0,Math.PI*2);ctx.fill();ctx.stroke();
       label(ctx,event.name,px,y+70,i===2?COLORS.amber:COLORS.ink,29,'center');if(i===0)label(ctx,'출발',px,y+107,COLORS.muted,21,'center');
     });
     probe(ctx,{x,y:y-40},0,false,COLORS.mint,1.35);label(ctx,'로제타',x,y-90,COLORS.mint,23,'center');
@@ -446,7 +462,9 @@ const FlybyModel = (() => {
   function render(time) {
     if(!context)return;
     const ctx=context,w=width,h=height,name=slides[index].dataset.scene;ctx.clearRect(0,0,w,h);
-    const config=SCENES[name];if(config.duration===0)time=config.still||0;
+    const config=SCENES[name];
+    if(DESIGN_ONLY)time=config.still??config.duration;
+    else if(config.duration===0)time=config.still||0;
     slides[index].classList.toggle('scene-complete',name==='stationary' && time>=STATIONARY_MOVE);
     switch(name) {
       case 'mission':mission(ctx,w,h,time);break;
@@ -480,6 +498,7 @@ const FlybyModel = (() => {
   /** 현재 단계를 그리고 필요한 경우에만 단일 애니메이션 루프 시작. */
   function start() {
     stop();const config=SCENES[slides[index].dataset.scene];
+    if(DESIGN_ONLY){render(0);return;}
     if(reduced.matches){render(config.duration);return;}
     render(elapsed);
     // 03장의 '그런데…' 공개는 출발 애니메이션을 다시 시작하지 않음.
