@@ -1,0 +1,103 @@
+/* === 색상과 오프라인 글꼴 === */
+:root {
+  --stage-bg:#03080c; --slide-bg:#08131b; --ink:#ecf0ec; --muted:#a0b2b8;
+  --mint:#b4e9ce; --amber:#e7b788; --line:#ffffff1c;
+  --body:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+}
+* { box-sizing:border-box; }
+
+/* === 고정 1920×1080 무대. 기기별 재배치 없이 전체를 비율 유지 축소함 === */
+html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--stage-bg,#000); }
+.deck-viewport { position:fixed; inset:0; overflow:hidden; background:var(--stage-bg,#000); }
+.deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background:var(--slide-bg,#fff); }
+.slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background:var(--slide-bg,#fff); }
+.slide.active,.slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+img,video,canvas,svg { max-width:100%; max-height:100%; }
+.deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+@media print {
+  html,body { width:1920px; height:auto; overflow:visible; background:#fff; }
+  .deck-viewport { position:static; overflow:visible; background:#fff; }
+  .deck-stage { position:static; width:auto; height:auto; transform:none!important; background:none; }
+  .slide { position:relative; display:block!important; visibility:visible!important; opacity:1!important; pointer-events:auto!important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+  .slide:last-child { break-after:auto; page-break-after:auto; }
+  .deck-controls { display:none!important; }
+}
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.2s!important; } }
+
+/* === 공통 무대와 타이포그래피 === */
+body { color:var(--ink); font-family:var(--body); word-break:keep-all; }
+.slide { background:radial-gradient(ellipse at 78% 70%,#17313a60,transparent 58%),var(--slide-bg); transition:opacity .28s,visibility .28s; }
+.slide::before { content:''; position:absolute; inset:0; pointer-events:none; opacity:.24; background-image:radial-gradient(circle at 11% 55%,#dce9ee 0 1px,transparent 1.6px),radial-gradient(circle at 73% 28%,#dce9ee 0 .8px,transparent 1.4px),radial-gradient(circle at 46% 71%,#dce9ee 0 .8px,transparent 1.4px); background-size:311px 277px,487px 317px,719px 347px; }
+.deck-header,.deck-footer { position:absolute; z-index:5; left:104px; right:104px; display:flex; align-items:center; justify-content:space-between; color:#93a7af; font-size:18px; letter-spacing:1px; pointer-events:none; }
+.deck-header { top:48px; height:52px; padding-bottom:23px; border-bottom:1px solid var(--line); }
+.header-mark { font-family:Verdana,sans-serif; font-size:16px; letter-spacing:5px; color:var(--mint); }
+.deck-footer { bottom:43px; font-size:16px; }
+.page-divider { color:#49606a; padding:0 16px; }
+.copy { position:absolute; z-index:2; }
+.eyebrow { margin:0 0 24px; color:var(--amber); font-size:22px; line-height:1.5; font-weight:500; letter-spacing:1px; }
+h1,h2,p { margin:0; }
+h1,.replacement { font-size:80px; line-height:1.33; letter-spacing:-4px; font-weight:700; }
+em { font-style:normal; color:var(--mint); }
+.lead { font-size:34px; color:var(--muted); line-height:1.65; margin-top:30px; letter-spacing:-1px; }
+.quiet { font-size:26px; line-height:1.8; }
+figure { position:absolute; margin:0; z-index:1; }
+canvas { display:block; }
+figcaption { margin-top:9px; font-size:17px; line-height:1.5; color:#90a6ae; text-align:right; }
+
+/* === 가로 그림과 좌우 분할. 모든 값은 고정 무대 내부 좌표임 === */
+.wide .copy { left:120px; top:170px; right:120px; height:290px; }
+.wide h1 { font-size:76px; line-height:1.3; }
+.wide figure { left:120px; top:475px; width:1680px; }
+.wide canvas { width:1680px; height:490px; }
+.split .copy { left:120px; top:290px; width:800px; }
+.split h1 { font-size:74px; }
+.split figure { left:900px; top:235px; width:930px; }
+.split canvas { width:930px; height:650px; }
+.split figcaption { max-width:930px; }
+.split .eyebrow { margin-bottom:30px; }
+.speed-study .result-slot .lead { margin-top:20px; }
+.moving-study .quiet { margin-top:20px; }
+
+/* === 단어와 질문으로 장면을 연결하는 전환 장 === */
+.interlude .copy { inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding-bottom:35px; }
+.interlude h1 { font-size:106px; line-height:1.4; }
+.interlude .eyebrow { margin-bottom:29px; }
+/* 전환·정의·결론은 문구만 남겨 발표자의 말에 집중할 여백 확보. */
+.slide[data-scene="why"] figure,.slide[data-scene="rethink"] figure,
+.slide[data-scene="definition"] figure,.slide[data-scene="question"] figure,
+.slide[data-scene="rosetta"] figure,.slide[data-scene="conclusion"] figure,
+.slide[data-scene="ending"] figure { display:none; }
+.keyword { font-family:Verdana,'Malgun Gothic',sans-serif; font-size:240px!important; line-height:1.12; letter-spacing:-13px; font-weight:700; }
+.keyword span { color:var(--mint); }
+.backdrop { left:120px; top:245px; width:1680px; opacity:.17; }
+.word-slide .copy { left:120px; top:310px; width:1560px; }
+.word-slide .keyword { font-size:224px!important; color:var(--mint); }
+.word-art { right:70px; top:238px; width:880px; opacity:.48; }
+.word-slide .definition { margin-top:38px; font-size:38px; line-height:1.8; letter-spacing:-1px; }
+.definition span { display:block; margin-top:20px; color:var(--muted); font-size:23px; letter-spacing:1px; }
+.word-slide .rosetta { font-size:185px!important; letter-spacing:-11px; }
+.word-slide:has(.definition) .copy { top:226px; }
+.final .keyword { color:var(--mint); }
+
+/* === 수동 단계 공개와 재생 후 결과 문구 === */
+[data-step],[data-until] { visibility:hidden; opacity:0; pointer-events:none; transition:opacity .35s,visibility .35s; }
+.step-visible { visibility:visible!important; opacity:1!important; }
+.replacement { position:absolute; left:0; top:35px; }
+.conclusion .replacement { top:0; font-size:76px; }
+.conclusion .copy { top:330px; }
+.effect-list h2 { font-size:82px; letter-spacing:-4px; line-height:1.5; color:#5c737c; font-weight:600; transition:color .35s; }
+.effect-list h2.focused { color:var(--mint); }
+.effect-list h2.focused::after { content:' ·'; color:var(--amber); }
+.frame-label { color:var(--muted); font-size:24px; margin-top:25px; }
+.result-slot { position:relative; height:110px; }
+.result-slot .lead { position:absolute; left:0; top:0; white-space:nowrap; }
+.motion-result { visibility:hidden; opacity:0; color:var(--mint); }
+.scene-complete .motion-result { visibility:visible; opacity:1; }
+.scene-complete .motion-process { visibility:hidden; opacity:0; }
+.route-words { font-size:30px; color:var(--muted); line-height:1.8; margin-top:20px; letter-spacing:-.5px; }
+.itinerary figure { top:467px; }
+.itinerary h1 { font-size:80px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+[hidden],.speaker-notes { display:none!important; }
+.no-script { position:absolute; z-index:10; bottom:100px; left:120px; color:var(--amber); font-size:24px; }
+@media (prefers-reduced-motion:reduce) { .slide,.copy,[data-step],[data-until],.effect-list h2 { transition:none; } }

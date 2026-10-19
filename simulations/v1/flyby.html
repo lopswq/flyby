@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>FLYBY — 중력으로 바꾸는 여정</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* === 색상과 타이포그래피 === */
+    :root { --stage-bg:#020608; --slide-bg:#060e13; --ink:#e5edef; --muted:#8c9da4; --line:#26353c; --mint:#b4f5dd; --amber:#e7b788; --mono:'IBM Plex Mono',monospace; --body:'Noto Sans KR',sans-serif; }
+    * { box-sizing:border-box; }
+    /* === 고정 1920×1080 화면: viewport-base.css === */
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-viewport { position:fixed; inset:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background:var(--slide-bg,#fff); }
+    .slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background:var(--slide-bg,#fff); }
+    .slide.active,.slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+    img,video,canvas,svg { max-width:100%; max-height:100%; }
+    .deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+    @media print {
+      html,body { width:1920px; height:auto; overflow:visible; background:#fff; }
+      .deck-viewport { position:static; overflow:visible; background:#fff; }
+      .deck-stage { position:static; width:auto; height:auto; transform:none!important; background:none; }
+      .slide { position:relative; display:block!important; visibility:visible!important; opacity:1!important; pointer-events:auto!important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+      .slide:last-child { break-after:auto; page-break-after:auto; }
+      .deck-controls { display:none!important; }
+    }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.2s!important; } }
+    /* === 관측 화면 === */
+    body { font-family:var(--body); color:var(--ink); }
+    #stage { background:radial-gradient(ellipse at 45% 60%,#112128 0%,#081217 40%,#050c11 78%); }
+    #scene { position:absolute; inset:0; width:1920px; height:1080px; }
+    .masthead { position:absolute; top:46px; left:66px; right:66px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:23px; }
+    .wordmark { font:500 22px var(--mono); letter-spacing:7px; }
+    .wordmark b { color:var(--mint); font-weight:400; }
+    .meta { display:flex; align-items:center; gap:30px; font:16px var(--mono); color:var(--muted); letter-spacing:2px; }
+    .status { display:inline-flex; align-items:center; gap:10px; color:var(--mint); }
+    .status::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 12px #b4f5dd60; }
+    .intro { position:absolute; top:131px; left:66px; pointer-events:none; }
+    .eyebrow { color:var(--amber); font:14px var(--mono); letter-spacing:3px; margin:0 0 10px; }
+    h1 { font:normal 112px/.94 'Instrument Serif',Georgia,serif; letter-spacing:-3px; margin:0; }
+    h1 em { font-weight:400; color:var(--mint); }
+    .subtitle { margin:18px 0 0; color:#a3b4bb; font-size:22px; letter-spacing:-.5px; }
+    .frame-note { position:absolute; left:68px; top:326px; color:var(--muted); font-size:15px; display:flex; align-items:center; gap:10px; }
+    .frame-note::before { content:''; width:22px; height:1px; background:var(--mint); }
+    .legend { position:absolute; left:66px; top:372px; display:flex; gap:28px; color:var(--muted); font-size:15px; }
+    .legend span { display:flex; gap:9px; align-items:center; }
+    .swatch { width:22px; height:2px; background:var(--mint); }
+    .swatch.planet { background:var(--amber); }
+    .swatch.before { background:#71828b; }
+    .phase-note { position:absolute; left:940px; top:801px; width:475px; pointer-events:none; }
+    .phase-note small { font:14px var(--mono); color:var(--amber); letter-spacing:3px; }
+    .phase-note h2 { font-weight:500; font-size:26px; line-height:1.3; margin:8px 0 7px; letter-spacing:-1px; }
+    .phase-note p { color:#94a7af; font-size:17px; line-height:1.6; margin:0; }
+    .assist { position:absolute; left:890px; top:175px; opacity:0; transform:translateY(8px); transition:opacity 1.2s,transform 1.2s; pointer-events:none; }
+    .assist.show { opacity:1; transform:none; }
+    .assist .label { font:italic 52px 'Instrument Serif',Georgia,serif; color:var(--mint); }
+    .assist p { margin:10px 0; font-size:17px; color:#b6c7c9; }
+    /* === 속력과 기준계 비교 === */
+    .telemetry { position:absolute; top:145px; right:66px; width:380px; padding-left:35px; border-left:1px solid var(--line); }
+    .panel-title { font:14px var(--mono); color:var(--muted); letter-spacing:2px; margin:0 0 27px; }
+    .metric-label { font-size:17px; color:#b1c1c7; margin-bottom:9px; }
+    .speed { font:64px/1.15 var(--mono); letter-spacing:-4px; color:var(--mint); font-variant-numeric:tabular-nums; }
+    .unit { font:17px var(--mono); color:var(--muted); letter-spacing:0; margin-left:10px; }
+    .delta { margin-top:9px; font:18px var(--mono); color:var(--mint); }
+    .distance { display:flex; justify-content:space-between; align-items:baseline; margin-top:31px; padding-bottom:27px; border-bottom:1px solid var(--line); }
+    .distance span { font-size:16px; color:var(--muted); }
+    .distance strong { font:23px var(--mono); font-variant-numeric:tabular-nums; }
+    .comparison { margin-top:26px; }
+    .comparison h3 { margin:0 0 20px; font-weight:500; font-size:18px; }
+    .bar-row { margin-top:16px; }
+    .bar-label { display:flex; justify-content:space-between; font-size:14px; color:var(--muted); }
+    .bar-label output { font:14px var(--mono); color:var(--ink); }
+    .bar { margin-top:9px; height:3px; background:#213038; }
+    .bar i { display:block; width:0; height:100%; background:var(--mint); }
+    .bar.before i { background:#71828b; }
+    #vectorDiagram { display:block; width:344px; height:145px; margin-top:13px; }
+    .relative { margin-top:5px; padding-top:19px; border-top:1px solid var(--line); }
+    .relative .values { display:flex; gap:20px; align-items:center; font:20px var(--mono); color:var(--amber); margin:13px 0; }
+    .relative p { font-size:14px; line-height:1.7; color:var(--muted); margin:0; }
+    /* === 재생 제어와 진행 상태 === */
+    .timeline { position:absolute; left:66px; right:66px; top:928px; }
+    .steps { display:flex; justify-content:space-between; padding-bottom:13px; }
+    .step { font-size:15px; color:#617781; }
+    .step.active { color:var(--mint); }
+    .step b { font:13px var(--mono); margin-right:11px; }
+    .track { height:2px; background:var(--line); }
+    #progress { width:0; height:100%; background:var(--mint); box-shadow:0 0 12px #b4f5dd40; }
+    .controls { position:absolute; left:66px; right:66px; top:996px; display:flex; align-items:center; gap:20px; }
+    button { border:1px solid #33434b; border-radius:5px; background:#101d24; color:var(--ink); font:16px var(--body); cursor:pointer; height:43px; padding:0 19px; }
+    button:hover { border-color:#a2c5be; background:#182930; }
+    button:focus-visible,input:focus-visible { outline:2px solid var(--mint); outline-offset:5px; }
+    #play { background:var(--mint); color:#10251f; border-color:var(--mint); font-weight:600; min-width:139px; }
+    #restart { font-size:24px; padding:0; width:45px; }
+    .rates { display:flex; margin-left:10px; }
+    .rates button { border-radius:0; font:15px var(--mono); padding:0 15px; }
+    .rates button:first-child { border-radius:5px 0 0 5px; }
+    .rates button:last-child { border-radius:0 5px 5px 0; }
+    .rates button+button { border-left:0; }
+    .rates button[aria-pressed=true] { color:var(--mint); background:#223832; }
+    .toggles { display:flex; align-items:center; gap:26px; margin-left:25px; }
+    .toggles label { display:flex; gap:9px; align-items:center; font-size:16px; color:#a5b7bf; cursor:pointer; }
+    input { accent-color:var(--mint); width:17px; height:17px; }
+    .footer-note { margin-left:auto; text-align:right; font-size:12px; color:#71868e; line-height:1.7; }
+    .footer-note span { font:12px var(--mono); color:#a2b9c0; }
+    #error { position:absolute; left:66px; top:475px; color:#ffbfac; font-size:23px; max-width:1100px; }
+  </style>
+</head>
+<body>
+<div class="deck-viewport">
+  <main class="deck-stage" id="stage" aria-label="플라이바이 우주 탐사 시뮬레이션">
+    <canvas id="scene" width="1920" height="1080" role="img" aria-label="이동하는 행성에 접근한 탐사선이 중력으로 방향을 바꾸고 가속하는 장면"></canvas>
+    <header class="masthead">
+      <div class="wordmark">F L Y B Y <b>↗</b></div>
+      <div class="meta"><span>ORBITAL MECHANICS / 01</span><span class="status" id="status">READY</span></div>
+    </header>
+    <div class="intro">
+      <p class="eyebrow">A LITTLE GRAVITY. A LONGER JOURNEY.</p>
+      <h1>A change of <em>course.</em></h1>
+      <p class="subtitle">엔진을 켜지 않고, 더 먼 우주로.</p>
+    </div>
+    <div class="frame-note">태양 기준 좌표계 · 이동하는 행성과 탐사선</div>
+    <div class="legend"><span><i class="swatch"></i>탐사선 속도</span><span><i class="swatch planet"></i>행성 속도</span><span><i class="swatch before"></i>접근 전 속도</span></div>
+    <div class="assist" id="assist"><div class="label">Gravity Assist</div><p>행성의 공전 에너지 일부를 탐사선으로.</p></div>
+    <div class="phase-note" aria-live="polite">
+      <small id="phaseNumber">01 / APPROACH</small>
+      <h2 id="phaseTitle">움직이는 행성을 향해</h2>
+      <p id="phaseText">탐사선이 행성의 뒤쪽으로 접근합니다.<br>재생을 눌러 여정을 시작하세요.</p>
+    </div>
+    <aside class="telemetry" aria-label="실시간 계산 수치">
+      <p class="panel-title">FLIGHT TELEMETRY</p>
+      <div class="metric-label">현재 속력 <span style="color:var(--muted)">/ 태양 기준</span></div>
+      <div class="speed"><output id="speed">—</output><span class="unit">km/s</span></div>
+      <div class="delta"><output id="delta">+0.00</output> <span style="color:var(--muted);font-size:13px">km/s · 접근 전 대비</span></div>
+      <div class="distance"><span>행성 중심까지 거리</span><strong><output id="distance">—</output> <small style="font-size:12px;color:var(--muted)">km</small></strong></div>
+      <div class="comparison">
+        <h3>같은 속도, 다른 기준계</h3>
+        <div class="bar-row"><div class="bar-label"><span>태양 기준 · 접근 전</span><output id="beforeSpeed">—</output></div><div class="bar before"><i id="beforeBar"></i></div></div>
+        <div class="bar-row"><div class="bar-label"><span id="afterLabel">태양 기준 · 현재</span><output id="afterSpeed">—</output></div><div class="bar"><i id="afterBar"></i></div></div>
+        <canvas id="vectorDiagram" width="688" height="290" role="img" aria-label="접근 전 속도 벡터와 현재 속도 벡터의 방향 및 길이 비교"></canvas>
+      </div>
+      <div class="relative">
+        <div class="metric-label" style="font-size:15px">행성 기준 속력 · 접근 전 → <span id="relativeLabel">현재</span></div>
+        <div class="values"><span id="relativeBefore">—</span><span style="color:#657c85">→</span><span id="relativeNow">—</span><span style="font-size:12px">km/s</span></div>
+        <p id="relativeNote">가까워질 때는 빨라지고, 멀어질 때는 느려집니다. 같은 거리에서 비교하면 속력이 거의 같습니다.</p>
+      </div>
+    </aside>
+    <div class="timeline" aria-label="여정 진행 상황">
+      <div class="steps"><span class="step active"><b>01</b>접근</span><span class="step"><b>02</b>궤도 변화</span><span class="step"><b>03</b>근접 통과</span><span class="step"><b>04</b>이탈 · 속력 비교</span></div>
+      <div class="track" role="progressbar" aria-label="시뮬레이션 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress"></div></div>
+    </div>
+    <footer class="controls">
+      <button id="play" type="button" aria-pressed="false">▶ 재생</button>
+      <button id="restart" type="button" title="처음부터 다시 보기 (R)" aria-label="처음부터 다시 보기">↺</button>
+      <div class="rates" role="group" aria-label="재생 속도"><button type="button" data-rate="0.5" aria-pressed="false">0.5×</button><button type="button" data-rate="1" aria-pressed="true">1×</button><button type="button" data-rate="2" aria-pressed="false">2×</button></div>
+      <div class="toggles"><label><input id="trailToggle" type="checkbox" checked>이동 궤적</label><label><input id="vectorToggle" type="checkbox" checked>속도 벡터</label></div>
+      <div class="footer-note"><span>SPACE</span> 재생 / 정지 &nbsp; <span>R</span> 처음부터<br>교육용 축척 · 천체·탐사선 크기 확대 · 태양 중력 생략</div>
+    </footer>
+    <noscript><p id="error">이 시뮬레이션을 보려면 JavaScript를 활성화하세요.</p></noscript>
+  </main>
+</div>
+
+<!-- === 물리 엔진: DOM에 의존하지 않아 Node.js에서도 동일 계산 검증 가능 === -->
+<script id="physics">
+'use strict';
+const FlybyPhysics = (() => {
+  // 거리 km, 시간 s. 목성과 비슷한 중력과 일정한 공전 속력을 가진 교육용 행성임.
+  // 태양 중력과 행성 반작용을 생략한 제한 2체 모델. 실제 임무 궤도 예측용이 아님.
+  const C = Object.freeze({ mu:126686534, radius:69911, planetVx:0, planetVy:13,
+    initialX:-1600000, initialY:-400000, initialVx:20, initialVy:0,
+    planetX:0, planetY:-900000, dt:10, secondsPerSecond:3600 });
+
+  /** 태양 기준 절대 위치·속도를 가진 시작 상태 생성. */
+  function initial() {
+    return { t:0, x:C.initialX+C.planetX, y:C.initialY+C.planetY,
+      vx:C.initialVx+C.planetVx, vy:C.initialVy+C.planetVy,
+      px:C.planetX, py:C.planetY };
+  }
+
+  /** 뉴턴 중력 가속도 계산. 표면 안쪽 상태는 충돌 오류로 처리함. */
+  function acceleration(s) {
+    const dx=s.x-s.px, dy=s.y-s.py, r=Math.hypot(dx,dy);
+    if (r<=C.radius) throw new Error('행성 표면 충돌: 초기 조건 점검 필요');
+    const k=-C.mu/(r*r*r);
+    return { x:k*dx, y:k*dy };
+  }
+
+  /** 고정 10초 간격 velocity Verlet 적분. 움직인 행성 위치에서 다음 가속도 평가. */
+  function step(s) {
+    const h=C.dt, a=acceleration(s);
+    const n={ t:s.t+h, x:s.x+s.vx*h+.5*a.x*h*h, y:s.y+s.vy*h+.5*a.y*h*h,
+      vx:s.vx, vy:s.vy, px:C.planetX+C.planetVx*(s.t+h), py:C.planetY+C.planetVy*(s.t+h) };
+    const b=acceleration(n);
+    n.vx+=(a.x+b.x)*h*.5; n.vy+=(a.y+b.y)*h*.5;
+    return n;
+  }
+
+  /** 두 기준계의 실제 속력과 중심 거리 반환. 에너지는 단위 질량당 값임. */
+  function measure(s) {
+    const dx=s.x-s.px, dy=s.y-s.py, ux=s.vx-C.planetVx, uy=s.vy-C.planetVy;
+    const distance=Math.hypot(dx,dy), relative=Math.hypot(ux,uy);
+    return { distance, relative, solar:Math.hypot(s.vx,s.vy), radial:(dx*ux+dy*uy)/distance,
+      energy:.5*relative*relative-C.mu/distance, angular:dx*uy-dy*ux,
+      acceleration:C.mu/(distance*distance) };
+  }
+
+  /** 출발 거리 이상으로 되돌아온 이탈 상태인지 판정. 동일 거리에서 전후 비교함. */
+  function finished(s) {
+    const m=measure(s);
+    return s.t>0 && m.radial>0 && m.distance>=Math.hypot(C.initialX,C.initialY);
+  }
+
+  /** 렌더링 프레임 사이 보간. 물리 적분 상태에는 되먹임하지 않음. */
+  function interpolate(a,b,f) {
+    const result={};
+    for (const key of Object.keys(a)) result[key]=a[key]+(b[key]-a[key])*f;
+    return result;
+  }
+
+  /** 화면 구도와 총 재생 시간 계산용 예비 적분. 실시간 재생은 step으로 별도 계산함. */
+  function reference() {
+    const states=[initial()]; let closest=Infinity, closestTime=0;
+    // 10초 × 50,000회: 잘못된 조건에서 무한 계산하지 않도록 제한함.
+    for(let i=0;i<50000;i++) {
+      const s=step(states[states.length-1]); states.push(s);
+      const d=measure(s).distance;
+      if(d<closest) { closest=d; closestTime=s.t; }
+      if(finished(s)) return { states, closest, closestTime, duration:s.t };
+    }
+    throw new Error('이탈 조건에 도달하지 못함');
+  }
+  return { C,initial,acceleration,step,measure,finished,interpolate,reference };
+})();
+</script>
+
+<script id="renderer">
+'use strict';
+(() => {
+  /* === 상태와 렌더링 준비 === */
+  const P=FlybyPhysics, C=P.C, ref=P.reference(), start=P.initial(), before=P.measure(start);
+  const $=id=>document.getElementById(id);
+  const stage=$('stage'), canvas=$('scene'), ctx=canvas.getContext('2d');
+  const vectorCtx=$('vectorDiagram').getContext('2d');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  let state=P.initial(), previous=state, accumulator=0, playing=false, rate=1;
+  let lastTime=null, complete=false, lastPhase=-1, telemetryTime=0;
+  let trail=[{x:state.x,y:state.y}], stepCount=0;
+  // 약 63° 회전된 관측 방향. 긴 여정을 가로로 배치하며 물리 좌표계는 유지함.
+  const angle=1.1, cos=Math.cos(angle), sin=Math.sin(angle);
+
+  /** 물리 좌표를 관측 평면으로 회전. */
+  function rotate(x,y) { return {x:cos*x+sin*y, y:-sin*x+cos*y}; }
+
+  /** 전체 여정과 행성 이동이 제어 영역을 침범하지 않는 고정 구도 계산. */
+  function fitWorld() {
+    const points=[];
+    for(let i=0;i<ref.states.length;i+=24) {
+      const s=ref.states[i]; points.push(rotate(s.x,s.y),rotate(s.px,s.py));
+    }
+    const end=ref.states[ref.states.length-1]; points.push(rotate(end.x,end.y));
+    const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    // 제목과 하단 설명을 피하도록 전체 경로를 중앙 관측 영역에 맞춤.
+    const scale=Math.min(1195/(maxX-minX),400/(maxY-minY));
+    return {scale,cx:(minX+maxX)/2,cy:(minY+maxY)/2,x:760,y:630};
+  }
+  const world=fitWorld();
+  // 행성 반지름을 실제 축척보다 확대하되 최근접 궤적을 가리지 않도록 제한함.
+  const planetRadius=Math.min(49,ref.closest*world.scale*.70);
+
+  /** 최근접 시점에만 부드럽게 확대. 모션 감소 설정에서는 확대하지 않음. */
+  function zoomAt(s) {
+    if(reduced.matches) return 1;
+    const t=(s.t-ref.closestTime)/17000;
+    return 1+.18*Math.exp(-t*t);
+  }
+
+  /** 월드 위치를 화면 좌표로 투영. */
+  function project(x,y,zoom=1) {
+    const p=rotate(x,y);
+    return {x:world.x+(p.x-world.cx)*world.scale*zoom,y:world.y-(p.y-world.cy)*world.scale*zoom};
+  }
+
+  /** 모든 화면에서 전체 16:9 장면을 같은 비율로 축소. */
+  function resize() {
+    const scale=Math.min(innerWidth/1920,innerHeight/1080);
+    stage.style.transform=`translate(${(innerWidth-1920*scale)/2}px,${(innerHeight-1080*scale)/2}px) scale(${scale})`;
+    // 고해상도 화면은 최대 2배. 4K 이상에서 과도한 픽셀 비용을 제한함.
+    const dpr=Math.min(devicePixelRatio||1,2);
+    canvas.width=Math.round(1920*dpr); canvas.height=Math.round(1080*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  /** 재현 가능한 별 배치를 위한 시드 난수. */
+  function random(seed) {
+    let value=seed;
+    return ()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
+  }
+  const rand=random(1009);
+  const stars=Array.from({length:230},()=>({x:rand()*1920,y:110+rand()*820,r:.3+rand()*1.1,a:.12+rand()*.4}));
+
+  /** 정적인 별과 절제된 좌표 눈금 렌더링. */
+  function drawBackground() {
+    ctx.clearRect(0,0,1920,1080);
+    for(const s of stars) {
+      ctx.fillStyle=`rgba(197,219,229,${s.a})`;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+    }
+    ctx.strokeStyle='#66808b10';ctx.lineWidth=1;
+    for(let x=72;x<1440;x+=92) for(let y=445;y<800;y+=80) {
+      ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x+3,y);ctx.moveTo(x,y-3);ctx.lineTo(x,y+3);ctx.stroke();
+    }
+  }
+
+  /** 화살표의 길이와 방향을 입력 벡터대로 표시. */
+  function arrow(context,x,y,dx,dy,color,width=2) {
+    const length=Math.hypot(dx,dy);
+    if(length<1) return;
+    const a=Math.atan2(dy,dx), head=Math.min(9,length*.25);
+    context.save();context.strokeStyle=color;context.fillStyle=color;context.lineWidth=width;context.lineCap='round';
+    context.beginPath();context.moveTo(x,y);context.lineTo(x+dx,y+dy);context.stroke();
+    context.beginPath();context.moveTo(x+dx,y+dy);context.lineTo(x+dx-head*Math.cos(a-.43),y+dy-head*Math.sin(a-.43));
+    context.lineTo(x+dx-head*Math.cos(a+.43),y+dy-head*Math.sin(a+.43));context.closePath();context.fill();context.restore();
+  }
+
+  /** 적분으로 계산한 실제 이동 기록만 그림. 미래 경로는 표시하지 않음. */
+  function drawTrail(s,zoom) {
+    if(!$('trailToggle').checked) return;
+    ctx.save();ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();
+    for(let i=0;i<trail.length;i++) {
+      const p=project(trail[i].x,trail[i].y,zoom);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    }
+    const now=project(s.x,s.y,zoom);ctx.lineTo(now.x,now.y);
+    ctx.strokeStyle='#b4f5dd';ctx.lineWidth=1.9;ctx.shadowBlur=13;ctx.shadowColor='#93e8c570';ctx.stroke();
+    ctx.shadowBlur=0;
+    const origin=project(start.x,start.y,zoom);ctx.fillStyle='#71828b';ctx.beginPath();ctx.arc(origin.x,origin.y,3,0,Math.PI*2);ctx.fill();
+    ctx.font='13px "IBM Plex Mono",monospace';ctx.fillStyle='#8199a3';ctx.fillText('ENTRY',origin.x-15,origin.y+25);ctx.restore();
+  }
+
+  /** 외부 이미지 없이 줄무늬와 명암을 가진 행성 표면 생성. */
+  function makePlanetTexture() {
+    const surface=document.createElement('canvas');surface.width=320;surface.height=320;
+    const c=surface.getContext('2d');
+    c.save();c.beginPath();c.arc(160,160,153,0,Math.PI*2);c.clip();
+    c.fillStyle='#a39178';c.fillRect(0,0,320,320);
+    const bands=['#c8b99b','#8b7767','#b3a08b','#d4c7ab','#9b8069','#c3ab90'];
+    for(let y=0;y<320;y+=3) {
+      c.fillStyle=bands[Math.floor((y+9*Math.sin(y*.1))/15+30)%bands.length];
+      c.globalAlpha=.3+.3*Math.sin(y*.43)**2;
+      c.beginPath();c.moveTo(0,y);
+      for(let x=0;x<=320;x+=8)c.lineTo(x,y+3*Math.sin(x*.025+y*.08));
+      c.lineTo(320,y+8);c.lineTo(0,y+8);c.fill();
+    }
+    c.globalAlpha=.4;c.fillStyle='#946f58';c.beginPath();c.ellipse(204,200,24,10,-.1,0,Math.PI*2);c.fill();
+    c.globalAlpha=1;
+    const shade=c.createRadialGradient(95,95,9,165,165,185);
+    shade.addColorStop(0,'#ffe4bb32');shade.addColorStop(.42,'#08121908');shade.addColorStop(.77,'#030c16a8');shade.addColorStop(1,'#01060afc');
+    c.fillStyle=shade;c.fillRect(0,0,320,320);
+    const night=c.createLinearGradient(30,0,290,150);night.addColorStop(0,'#06101a00');night.addColorStop(.55,'#06101a22');night.addColorStop(1,'#01060be8');
+    c.fillStyle=night;c.fillRect(0,0,320,320);c.restore();return surface;
+  }
+  const texture=makePlanetTexture();
+
+  /** 이동하는 행성, 공전 방향 벡터, 현재 위치 기준 라벨 렌더링. */
+  function drawPlanet(s,zoom) {
+    const p=project(s.px,s.py,zoom), r=planetRadius*zoom;
+    ctx.save();
+    const glow=ctx.createRadialGradient(p.x,p.y,r*.8,p.x,p.y,r*1.9);
+    glow.addColorStop(0,'#c4d8dc0d');glow.addColorStop(.5,'#8aaeb70a');glow.addColorStop(1,'#8aaeb700');
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(p.x,p.y,r*1.9,0,Math.PI*2);ctx.fill();
+    ctx.drawImage(texture,p.x-r*1.045,p.y-r*1.045,r*2.09,r*2.09);
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.strokeStyle='#dbd9c02b';ctx.lineWidth=.8;ctx.stroke();
+    const v=rotate(C.planetVx,C.planetVy);
+    if($('vectorToggle').checked) {
+      arrow(ctx,p.x,p.y-r-18,v.x*5.3,-v.y*5.3,'#e7b788',1.6);
+      ctx.font='13px "IBM Plex Mono",monospace';ctx.fillStyle='#c0a88f';ctx.fillText('13.0 km/s',p.x+v.x*5.3+11,p.y-r-18-v.y*5.3);
+    }
+    ctx.font='13px "IBM Plex Mono",monospace';ctx.fillStyle='#b4c1c4';ctx.fillText('JUPITER-LIKE',p.x+r+20,p.y+10);
+    ctx.fillStyle='#758991';ctx.font='13px "Noto Sans KR",sans-serif';ctx.fillText('이동하는 행성',p.x+r+20,p.y+32);
+    ctx.restore();
+  }
+
+  /** 화염 없이 안테나와 태양전지판만 가진 작은 탐사선 렌더링. */
+  function drawProbe(s,zoom) {
+    const p=project(s.x,s.y,zoom), v=rotate(s.vx,s.vy), a=Math.atan2(-v.y,v.x);
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(a);
+    ctx.shadowColor='#b4f5dd66';ctx.shadowBlur=12;ctx.fillStyle='#c8d6d8';
+    ctx.fillRect(-7,-5,13,10);ctx.shadowBlur=0;
+    ctx.strokeStyle='#9eb8c2';ctx.lineWidth=1;
+    ctx.fillStyle='#29434e';ctx.fillRect(-5,-20,9,12);ctx.strokeRect(-5,-20,9,12);ctx.fillRect(-5,8,9,12);ctx.strokeRect(-5,8,9,12);
+    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(0,8);ctx.moveTo(6,0);ctx.lineTo(16,0);ctx.stroke();
+    ctx.fillStyle='#e4dfcc';ctx.beginPath();ctx.ellipse(9,0,2,7,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    if($('vectorToggle').checked) {
+      const bv=rotate(start.vx,start.vy);
+      ctx.save();ctx.setLineDash([4,5]);arrow(ctx,p.x,p.y,bv.x*3.6,-bv.y*3.6,'#738894',1.2);ctx.restore();
+      arrow(ctx,p.x,p.y,v.x*3.6,-v.y*3.6,'#b4f5dd',2);
+      const labelX=Math.min(1355,p.x+v.x*3.6+12),labelY=p.y-v.y*3.6-9;
+      ctx.fillStyle='#b4f5dd';ctx.font='14px "IBM Plex Mono",monospace';ctx.fillText(`${P.measure(s).solar.toFixed(2)} km/s`,labelX,labelY);
+    }
+    ctx.fillStyle='#b0c0c5';ctx.font='13px "IBM Plex Mono",monospace';ctx.fillText('PROBE',p.x-23,p.y+37);
+  }
+
+  /** 같은 원점과 축척으로 접근 전·현재 속도 벡터 비교. */
+  function drawVectorDiagram(s) {
+    const c=vectorCtx;c.setTransform(2,0,0,2,0,0);c.clearRect(0,0,344,145);
+    if(!$('vectorToggle').checked) {
+      c.fillStyle='#8199a3';c.font='13px "Noto Sans KR",sans-serif';c.fillText('속도 벡터 숨김',20,80);return;
+    }
+    const v0=rotate(start.vx,start.vy),v=rotate(s.vx,s.vy),origin={x:36,y:115},scale=3.45;
+    c.strokeStyle='#3d535c';c.beginPath();c.arc(origin.x,origin.y,3,0,Math.PI*2);c.stroke();
+    c.setLineDash([3,4]);arrow(c,origin.x,origin.y,v0.x*scale,-v0.y*scale,'#71828b',1.4);c.setLineDash([]);
+    arrow(c,origin.x,origin.y,v.x*scale,-v.y*scale,'#b4f5dd',2);
+    c.font='12px "Noto Sans KR",sans-serif';c.fillStyle='#71828b';c.fillText('접근 전',origin.x+v0.x*scale+10,origin.y-v0.y*scale+4);
+    c.fillStyle='#b4f5dd';c.fillText(complete?'이탈 후':'현재',origin.x+v.x*scale+10,origin.y-v.y*scale-8);
+    c.fillStyle='#526f7c';c.font='11px "IBM Plex Mono",monospace';c.fillText('SUN FRAME / SAME VECTOR SCALE',35,142);
+  }
+
+  /** 거리와 최근접 시점으로 설명 단계 판정. */
+  function phase(s) {
+    const m=P.measure(s);
+    if(complete || s.t>ref.closestTime+9500) return 3;
+    if(Math.abs(s.t-ref.closestTime)<9500) return 2;
+    if(m.distance<750000) return 1;
+    return 0;
+  }
+  const phases=[
+    ['01 / APPROACH','움직이는 행성을 향해','탐사선이 행성의 뒤쪽으로 접근합니다.<br>엔진 분사 없이 중력에 이끌려 이동합니다.'],
+    ['02 / DEFLECTION','중력이 여정을 휘게 합니다','가까워질수록 중력이 강해집니다.<br>탐사선의 방향과 속력이 함께 변합니다.'],
+    ['03 / CLOSEST APPROACH','가장 가까운 만남','행성의 뒤쪽을 스쳐 지나는 탐사선.<br>짧은 만남이 다음 여정의 방향을 바꿉니다.'],
+    ['04 / DEPARTURE','같은 만남, 더 빨라진 여정','멀어지며 다시 느려져도, 태양 기준 속력은<br>접근 전보다 큽니다. 이것이 중력 도움입니다.']
+  ];
+
+  /** 계산 결과로만 수치 표시. 아직 도달하지 않은 이탈 속력을 확정 표시하지 않음. */
+  function updateTelemetry(s) {
+    const m=P.measure(s), delta=m.solar-before.solar;
+    $('speed').textContent=m.solar.toFixed(2);$('delta').textContent=`${delta>=0?'+':''}${delta.toFixed(2)}`;
+    $('distance').textContent=Math.round(m.distance).toLocaleString('en-US');
+    $('beforeSpeed').textContent=`${before.solar.toFixed(2)} km/s`;$('afterSpeed').textContent=`${m.solar.toFixed(2)} km/s`;
+    $('beforeBar').style.width=`${before.solar/45*100}%`;$('afterBar').style.width=`${Math.min(100,m.solar/45*100)}%`;
+    $('relativeBefore').textContent=before.relative.toFixed(2);$('relativeNow').textContent=m.relative.toFixed(2);
+    $('afterLabel').textContent=complete?'태양 기준 · 이탈 후':'태양 기준 · 현재';
+    $('relativeLabel').textContent=complete?'이탈 후':'현재';
+    $('relativeNote').textContent=complete?'접근 전과 거의 같은 거리로 돌아왔습니다. 행성 기준 속력은 거의 같고, 태양 기준 속력은 증가했습니다.':'가까워질 때는 빨라지고, 멀어질 때는 느려집니다. 같은 거리에서 비교하면 속력이 거의 같습니다.';
+    const pct=Math.min(100,s.t/ref.duration*100);$('progress').style.width=`${pct}%`;
+    document.querySelector('[role=progressbar]').setAttribute('aria-valuenow',Math.round(pct));
+    const index=phase(s);
+    if(index!==lastPhase) {
+      lastPhase=index;const p=phases[index];$('phaseNumber').textContent=p[0];$('phaseTitle').textContent=p[1];$('phaseText').innerHTML=p[2];
+      document.querySelectorAll('.step').forEach((el,i)=>el.classList.toggle('active',i<=index));
+    }
+    $('assist').classList.toggle('show',index===3);
+    drawVectorDiagram(s);
+  }
+
+  /** 재생 상태를 버튼과 상태 표시에 반영. 종료 후 재생하면 처음부터 시작함. */
+  function updatePlayback() {
+    $('play').textContent=playing?'Ⅱ 일시정지':complete?'↺ 다시 보기':'▶ 재생';
+    $('play').setAttribute('aria-pressed',String(playing));
+    $('status').textContent=complete?'COMPLETE':playing?'LIVE SIMULATION':state.t>0?'PAUSED':'READY';
+  }
+
+  /** 시각·궤적·측정을 초기화. 배율과 표시 설정은 유지함. */
+  function reset() {
+    state=P.initial();previous=state;accumulator=0;complete=false;stepCount=0;
+    trail=[{x:state.x,y:state.y}];lastPhase=-1;lastTime=null;telemetryTime=0;
+    updateTelemetry(state);updatePlayback();
+  }
+
+  /** 재생과 정지 전환. 정지 시간은 시뮬레이션 시간에 포함하지 않음. */
+  function togglePlay() {
+    if(complete) reset();
+    playing=!playing;lastTime=null;updatePlayback();
+  }
+
+  /** 고정 간격 운동 계산 후 화면 표시만 프레임 사이 보간함. */
+  function frame(now) {
+    const elapsed=lastTime===null?0:Math.min((now-lastTime)/1000,.1);lastTime=now;
+    if(playing) {
+      accumulator+=elapsed*C.secondsPerSecond*rate;
+      while(accumulator>=C.dt && !complete) {
+        previous=state;state=P.step(state);accumulator-=C.dt;stepCount++;
+        if(stepCount%8===0) trail.push({x:state.x,y:state.y});
+        if(P.finished(state)) { complete=true;playing=false;accumulator=0;updatePlayback(); }
+      }
+    }
+    const visual=complete?state:P.interpolate(previous,state,accumulator/C.dt);
+    const zoom=zoomAt(visual);drawBackground();drawTrail(visual,zoom);drawPlanet(visual,zoom);drawProbe(visual,zoom);
+    if(now-telemetryTime>80 || complete) { updateTelemetry(visual);telemetryTime=now; }
+    requestAnimationFrame(frame);
+  }
+
+  /* === 버튼·키보드·탭 전환 처리 === */
+  $('play').addEventListener('click',togglePlay);
+  $('restart').addEventListener('click',()=>{playing=false;reset();});
+  document.querySelectorAll('[data-rate]').forEach(button=>button.addEventListener('click',()=>{
+    rate=Number(button.dataset.rate);
+    document.querySelectorAll('[data-rate]').forEach(el=>el.setAttribute('aria-pressed',String(el===button)));
+  }));
+  $('vectorToggle').addEventListener('change',()=>drawVectorDiagram(state));
+  addEventListener('keydown',event=>{
+    if(event.repeat || event.ctrlKey || event.metaKey || event.altKey || /INPUT|BUTTON|SELECT|TEXTAREA/.test(event.target.tagName)) return;
+    if(event.code==='Space') { event.preventDefault();togglePlay(); }
+    if(event.key.toLowerCase()==='r') { playing=false;reset(); }
+  });
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && playing) { playing=false;lastTime=null;updatePlayback(); }
+  });
+  addEventListener('resize',resize);
+  resize();updateTelemetry(state);updatePlayback();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

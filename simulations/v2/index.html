@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>플라이바이 — 중력을 빌린 우주 항해</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* === 고정 16:9 화면 기본 스타일 === */
+    :root { --stage-bg:#151c1c; --slide-bg:#f2f0e9; --ink:#202c2c; --muted:#747f79; --green:#476756; --line:#d3d8ce; --body:'Noto Sans KR',sans-serif; }
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-viewport { position:fixed; inset:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background:var(--slide-bg,#fff); }
+    .slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background:var(--slide-bg,#fff); }
+    .slide.active,.slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+    img,video,canvas,svg { max-width:100%; max-height:100%; }
+    .deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+    @media print {
+      html,body { width:1920px; height:auto; overflow:visible; background:#fff; }
+      .deck-viewport { position:static; overflow:visible; background:#fff; }
+      .deck-stage { position:static; width:auto; height:auto; transform:none!important; background:none; }
+      .slide { position:relative; display:block!important; visibility:visible!important; opacity:1!important; pointer-events:auto!important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+      .slide:last-child { break-after:auto; page-break-after:auto; }
+      .deck-controls { display:none!important; }
+    }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.2s!important; } }
+
+    /* === 발표 슬라이드: 설명과 삽화의 영역을 분리함 === */
+    * { box-sizing:border-box; }
+    body { color:var(--ink); font-family:var(--body); word-break:keep-all; }
+    header { position:absolute; left:92px; right:92px; top:58px; height:61px; display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); }
+    .section-name { font-size:21px; letter-spacing:-.4px; font-weight:500; }
+    .section-name span { color:var(--muted); margin-right:22px; font:16px 'DM Sans',sans-serif; }
+    .chapter { color:var(--muted); font:16px 'DM Sans',sans-serif; letter-spacing:2px; }
+    .copy { position:absolute; left:92px; top:245px; width:690px; }
+    .eyebrow { color:var(--green); font:600 18px 'DM Sans',sans-serif; letter-spacing:3px; margin:0 0 31px; }
+    h1 { font-size:80px; line-height:1.28; letter-spacing:-5px; font-weight:700; margin:0; }
+    h1 em { color:var(--green); font-style:normal; }
+    .definition { margin:37px 0 0; font-size:27px; line-height:1.85; letter-spacing:-.8px; color:#626e67; }
+    .definition strong { color:var(--ink); font-weight:600; }
+    .takeaway { margin-top:61px; padding-left:23px; border-left:3px solid #7b9680; font-size:25px; line-height:1.7; color:var(--green); }
+    .takeaway small { display:block; color:var(--muted); font-size:19px; margin-top:8px; }
+
+    /* === 오른쪽 개념도: 속도계·벡터·조작 버튼 없이 여정만 표현 === */
+    figure { position:absolute; left:855px; top:218px; width:973px; margin:0; }
+    .illustration { position:relative; height:606px; border-radius:9px; overflow:hidden; background:radial-gradient(ellipse at 50% 65%,#25373b,#15232a 54%,#111d24); }
+    #space { display:block; width:973px; height:606px; }
+    .illustration-title { position:absolute; top:30px; left:34px; color:#b6c4c5; font-size:17px; letter-spacing:.3px; }
+    .illustration-title::before { content:''; display:inline-block; vertical-align:middle; width:5px; height:5px; border-radius:50%; background:#b8d0bd; margin-right:11px; }
+    .scene-caption { position:absolute; bottom:32px; left:34px; color:#d7e2de; font-size:21px; letter-spacing:-.4px; }
+    figcaption { margin-top:17px; font-size:16px; color:var(--muted); text-align:right; }
+
+    /* === 발표자가 설명할 수 있도록 고정된 세 단계 문구 === */
+    .sequence { position:absolute; left:92px; right:92px; top:924px; display:grid; grid-template-columns:repeat(3,1fr); column-gap:57px; }
+    .beat { padding-top:20px; border-top:2px solid var(--line); transition:border-color .6s; }
+    .beat.active { border-color:#739380; }
+    .beat .number { display:inline-block; color:#94a096; font:18px 'DM Sans',sans-serif; margin-right:18px; }
+    .beat strong { font-size:23px; font-weight:500; color:#4d5c53; }
+    .beat p { font-size:18px; color:var(--muted); margin:10px 0 0 42px; }
+    .beat.active .number,.beat.active strong { color:var(--green); }
+    .reveal { animation:arrive .9s both; }
+    .copy.reveal { animation-delay:.08s; }
+    figure.reveal { animation-delay:.2s; }
+    @keyframes arrive { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  </style>
+</head>
+<body>
+  <div class="deck-viewport">
+    <main class="deck-stage" id="stage">
+      <section class="slide active" aria-label="플라이바이 원리를 설명하는 발표 슬라이드">
+        <header>
+          <div class="section-name"><span>01</span>우주를 향한 여정</div>
+          <div class="chapter">FLYBY · GRAVITY ASSIST</div>
+        </header>
+        <div class="copy reveal">
+          <p class="eyebrow">플라이바이</p>
+          <h1>행성의 중력을<br>빌려, <em>더 멀리.</em></h1>
+          <p class="definition">행성 곁을 스쳐 지나며 <strong>방향을 바꾸고,</strong><br>행성의 운동 에너지를 조금 나눠 받습니다.</p>
+          <div class="takeaway">엔진을 켜지 않아도, 더 빨라지는 여정.<small>행성의 움직임이 탐사선의 다음 여정을 돕습니다.</small></div>
+        </div>
+        <figure class="reveal">
+          <div class="illustration">
+            <canvas id="space" width="973" height="606" role="img" aria-label="탐사선이 움직이는 행성에 접근한 뒤 중력으로 경로를 바꾸며 이탈하는 자동 반복 개념도"></canvas>
+            <div class="illustration-title">행성 곁을 지나는 탐사선</div>
+            <div class="scene-caption" id="caption">행성으로 접근</div>
+          </div>
+          <figcaption>플라이바이 개념도 · 크기와 거리는 실제 축척과 다름</figcaption>
+        </figure>
+        <div class="sequence" aria-label="플라이바이의 세 단계">
+          <div class="beat active"><span class="number">01</span><strong>접근</strong><p>이동하는 행성의 뒤쪽으로</p></div>
+          <div class="beat"><span class="number">02</span><strong>방향 전환</strong><p>중력에 이끌려 휘어지는 경로</p></div>
+          <div class="beat"><span class="number">03</span><strong>다음 여정</strong><p>태양 기준으로 더 빨라진 탐사선</p></div>
+        </div>
+        <noscript><p style="position:absolute;left:890px;top:435px;color:#dce8df;font-size:24px">애니메이션을 보려면 JavaScript를 활성화하세요.</p></noscript>
+      </section>
+    </main>
+  </div>
+
+  <script id="physics">
+  'use strict';
+  const V2Physics=(()=>{
+    // km, s 단위의 교육용 제한 2체 모델. 태양 중력과 행성 반작용은 생략함.
+    // 넉넉한 근접 거리로 발표 화면에서 행성과 경로를 쉽게 구별하도록 설정함.
+    const C=Object.freeze({mu:126686534,radius:69911,planetVy:13,dt:10,x:-1400000,y:-600000,vx:20,vy:0});
+
+    /** 행성 초기 위치를 원점으로 둔 태양 기준 상태 생성. */
+    function initial() { return {t:0,x:C.x,y:C.y,vx:C.vx,vy:C.vy+C.planetVy,px:0,py:0}; }
+
+    /** 행성 위치를 향하는 뉴턴 중력 가속도 계산. */
+    function acceleration(s) {
+      const dx=s.x-s.px,dy=s.y-s.py,r=Math.hypot(dx,dy);
+      if(r<=C.radius) throw new Error('행성 표면 충돌');
+      const k=-C.mu/(r*r*r);return {x:k*dx,y:k*dy};
+    }
+
+    /** 일정한 10초 간격 velocity Verlet 적분으로 다음 상태 계산. */
+    function step(s) {
+      const h=C.dt,a=acceleration(s),n={t:s.t+h,x:s.x+s.vx*h+.5*a.x*h*h,y:s.y+s.vy*h+.5*a.y*h*h,vx:s.vx,vy:s.vy,px:0,py:C.planetVy*(s.t+h)};
+      const b=acceleration(n);n.vx+=(a.x+b.x)*h*.5;n.vy+=(a.y+b.y)*h*.5;return n;
+    }
+
+    /** 실제 중력으로 여정을 한 번 계산하여 반복 재생에 사용할 상태 목록 생성. */
+    function journey() {
+      const states=[initial()],startDistance=Math.hypot(C.x,C.y);let closest=Infinity,closestTime=0;
+      // 50만 초 이내 이탈하지 못하면 잘못된 초기 조건으로 처리함.
+      for(let i=0;i<50000;i++) {
+        const s=step(states[states.length-1]),distance=Math.hypot(s.x-s.px,s.y-s.py);states.push(s);
+        if(distance<closest) {closest=distance;closestTime=s.t;}
+        const radial=(s.x-s.px)*s.vx+(s.y-s.py)*(s.vy-C.planetVy);
+        if(radial>0 && distance>=startDistance) return {states,closest,closestTime,duration:s.t};
+      }
+      throw new Error('이탈 조건에 도달하지 못함');
+    }
+
+    /** 고정 간격 상태 사이를 보간하여 재생 시간에 맞는 위치·속도 반환. */
+    function sample(flight,t) {
+      const safe=Math.max(0,Math.min(flight.duration,t)),index=Math.min(flight.states.length-2,Math.floor(safe/C.dt));
+      const a=flight.states[index],b=flight.states[index+1],fraction=(safe-a.t)/C.dt,result={};
+      for(const key of Object.keys(a)) result[key]=a[key]+(b[key]-a[key])*fraction;
+      return result;
+    }
+    return {C,initial,step,journey,sample};
+  })();
+  </script>
+
+  <script id="animation">
+  'use strict';
+  (()=>{
+    const stage=document.getElementById('stage'),canvas=document.getElementById('space'),ctx=canvas.getContext('2d');
+    const caption=document.getElementById('caption'),beats=[...document.querySelectorAll('.beat')];
+    const P=V2Physics,flight=P.journey(),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+    // 이동 18초, 이탈 후 대기 2.5초, 페이드 1.5초로 22초마다 자동 반복함.
+    const W=973,H=606,MOVE=18,HOLD=2.5,FADE=1.5,CYCLE=MOVE+HOLD+FADE;
+    let elapsed=0,lastTime=null,requestId=0,currentBeat=-1;
+    const angle=1.15,cos=Math.cos(angle),sin=Math.sin(angle);
+
+    /** 태양 기준 좌표를 회전하여 가로로 긴 삽화 안에 배치함. */
+    function rotate(x,y) {return {x:cos*x+sin*y,y:-sin*x+cos*y};}
+
+    /** 전체 여정과 행성 위치로 고정된 표시 축척 계산. */
+    function framing() {
+      const points=[];
+      for(let i=0;i<flight.states.length;i+=20) {const s=flight.states[i];points.push(rotate(s.x,s.y),rotate(s.px,s.py));}
+      const end=flight.states[flight.states.length-1];points.push(rotate(end.x,end.y),rotate(end.px,end.py));
+      const xs=points.map(p=>p.x),ys=points.map(p=>p.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+      return {scale:Math.min(760/(maxX-minX),310/(maxY-minY)),x:(minX+maxX)/2,y:(minY+maxY)/2};
+    }
+    const view=framing();
+    // 행성 크기를 확대하되 최근접 탐사선과 경로를 가리지 않도록 제한함.
+    const radius=Math.min(66,flight.closest*view.scale*.66);
+
+    /** 물리 좌표를 삽화의 안전 영역에 투영함. */
+    function project(x,y) {const p=rotate(x,y);return {x:W/2+(p.x-view.x)*view.scale,y:292-(p.y-view.y)*view.scale};}
+
+    /** 반복 경계의 밝기를 부드럽게 연결함. 궤도 진행 속도는 변경하지 않음. */
+    function smooth(x) {const t=Math.max(0,Math.min(1,x));return t*t*(3-2*t);}
+
+    /** 고정 16:9 슬라이드 전체를 화면에 맞춰 축소함. */
+    function resize() {
+      const scale=Math.min(innerWidth/1920,innerHeight/1080);
+      stage.style.transform=`translate(${(innerWidth-1920*scale)/2}px,${(innerHeight-1080*scale)/2}px) scale(${scale})`;
+      const dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+      draw(elapsed);
+    }
+
+    /** 고정 시드로 은은한 별 배치 생성. 반복 경계에서 위치를 유지함. */
+    function stars() {
+      let seed=311;const points=[];
+      for(let i=0;i<92;i++) {seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed/4294967296*W;seed=(Math.imul(seed,1664525)+1013904223)>>>0;points.push({x,y:seed/4294967296*H,alpha:.12+(i%4)*.045});}
+      return points;
+    }
+    const starfield=stars();
+
+    /** 외부 이미지 없이 줄무늬와 입체적인 명암을 가진 행성 표면 생성. */
+    function planetTexture() {
+      const image=document.createElement('canvas');image.width=360;image.height=360;const c=image.getContext('2d');
+      c.save();c.beginPath();c.arc(180,180,174,0,Math.PI*2);c.clip();c.fillStyle='#bba886';c.fillRect(0,0,360,360);
+      const colors=['#cbbb9d','#a68d71','#d1c3a7','#ab957c','#b5a28b','#dbd0b9'];
+      for(let y=0;y<360;y+=4) {
+        c.fillStyle=colors[Math.floor((y+7*Math.sin(y*.08)+60)/19)%colors.length];c.globalAlpha=.64;
+        c.beginPath();c.moveTo(0,y);
+        for(let x=0;x<=360;x+=9)c.lineTo(x,y+3*Math.sin(x*.025+y*.07));
+        c.lineTo(360,y+9);c.lineTo(0,y+9);c.fill();
+      }
+      c.globalAlpha=.5;c.fillStyle='#9d765e';c.beginPath();c.ellipse(222,220,24,10,-.1,0,Math.PI*2);c.fill();c.globalAlpha=1;
+      const shade=c.createRadialGradient(115,105,10,180,180,210);shade.addColorStop(0,'#fff1c440');shade.addColorStop(.5,'#0c1b260a');shade.addColorStop(.83,'#0b1824b5');shade.addColorStop(1,'#06121afc');c.fillStyle=shade;c.fillRect(0,0,360,360);
+      const night=c.createLinearGradient(60,0,350,170);night.addColorStop(0,'#0a172000');night.addColorStop(.5,'#0a172018');night.addColorStop(1,'#06121aef');c.fillStyle=night;c.fillRect(0,0,360,360);
+      c.restore();return image;
+    }
+    const planet=planetTexture();
+
+    /** 실제 통과한 부분만 궤적으로 그림. */
+    function path(s) {
+      ctx.save();ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#bdd9c7';ctx.shadowColor='#b1d3bf40';ctx.shadowBlur=9;ctx.beginPath();
+      const count=Math.floor(s.t/P.C.dt);
+      for(let i=0;i<=count;i+=12) {const v=flight.states[i],p=project(v.x,v.y);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}
+      const p=project(s.x,s.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.restore();
+    }
+
+    /** 이동하는 행성과 간단한 이름표를 그림. */
+    function drawPlanet(s) {
+      const p=project(s.px,s.py),halo=ctx.createRadialGradient(p.x,p.y,radius*.8,p.x,p.y,radius*1.8);
+      halo.addColorStop(0,'#b5d0c516');halo.addColorStop(1,'#b5d0c500');ctx.fillStyle=halo;ctx.beginPath();ctx.arc(p.x,p.y,radius*1.8,0,Math.PI*2);ctx.fill();
+      ctx.drawImage(planet,p.x-radius*1.035,p.y-radius*1.035,radius*2.07,radius*2.07);
+      ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);ctx.strokeStyle='#d3dec233';ctx.lineWidth=.75;ctx.stroke();
+      ctx.fillStyle='#afbfbb';ctx.font='17px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.fillText('행성',p.x,p.y+radius+29);ctx.textAlign='left';
+    }
+
+    /** 진행 방향을 향하는 탐사선 그림. 엔진 분사는 생략함. */
+    function drawProbe(s) {
+      const p=project(s.x,s.y),v=rotate(s.vx,s.vy);
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(-v.y,v.x));
+      ctx.fillStyle='#d6dfdc';ctx.shadowColor='#e2eee550';ctx.shadowBlur=9;ctx.fillRect(-6,-4,12,8);ctx.shadowBlur=0;
+      ctx.fillStyle='#416273';ctx.strokeStyle='#9ab1b8';ctx.lineWidth=.8;
+      ctx.fillRect(-5,-18,9,11);ctx.strokeRect(-5,-18,9,11);ctx.fillRect(-5,7,9,11);ctx.strokeRect(-5,7,9,11);
+      ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(0,7);ctx.moveTo(5,0);ctx.lineTo(14,0);ctx.stroke();
+      ctx.fillStyle='#e7e2cf';ctx.beginPath();ctx.ellipse(8,0,2,6,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.fillStyle='#c3d5ca';ctx.font='17px "Noto Sans KR",sans-serif';ctx.fillText('탐사선',p.x-25,p.y-29);
+    }
+
+    /** 시간에 따라 여정을 진행하고 이탈 후 잠시 대기한 뒤 반복함. */
+    function draw(seconds) {
+      const local=seconds%CYCLE,progress=Math.min(1,local/MOVE);
+      // 모션 감소 설정에서는 이탈 중인 상태의 정지 개념도 표시.
+      const time=reduced.matches?flight.duration*.82:progress*flight.duration,s=P.sample(flight,time);
+      const opacity=reduced.matches?1:Math.min(smooth(local/.8),1-smooth((local-MOVE-HOLD)/FADE));
+      ctx.clearRect(0,0,W,H);
+      for(const star of starfield) {ctx.fillStyle=`rgba(204,221,221,${star.alpha})`;ctx.fillRect(star.x,star.y,1,1);}
+      ctx.save();ctx.globalAlpha=opacity;path(s);drawPlanet(s);drawProbe(s);ctx.restore();
+      const phase=time<flight.closestTime-18000?0:time<flight.closestTime+18000?1:2;
+      if(phase!==currentBeat) {
+        currentBeat=phase;beats.forEach((el,i)=>el.classList.toggle('active',i===phase));
+        caption.textContent=['행성으로 접근','중력으로 방향 전환','새로운 경로로, 더 멀리'][phase];
+      }
+    }
+
+    /** 화면에 표시되는 동안 자동 재생. 숨겨진 시간만큼 건너뛰지 않음. */
+    function frame(now) {
+      if(lastTime!==null) elapsed+=Math.min((now-lastTime)/1000,.1);
+      lastTime=now;draw(elapsed);requestId=requestAnimationFrame(frame);
+    }
+
+    /** 모션 설정과 탭 표시 상태에 맞춰 애니메이션 반복 호출 제어. */
+    function syncMotion() {
+      cancelAnimationFrame(requestId);requestId=0;lastTime=null;
+      if(!document.hidden && !reduced.matches) requestId=requestAnimationFrame(frame);
+      else if(!document.hidden) draw(elapsed);
+    }
+
+    addEventListener('resize',resize);document.addEventListener('visibilitychange',syncMotion);reduced.addEventListener('change',syncMotion);
+    resize();syncMotion();
+  })();
+  </script>
+</body>
+</html>
