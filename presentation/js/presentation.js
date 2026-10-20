@@ -781,14 +781,23 @@ const LaunchModel = (() => {
 
   /** 길게 누르기와 편집 단축키를 제외하고 발표 키 입력 처리. */
   function keydown(event) {
-    if(event.repeat||event.metaKey||event.altKey||event.target?.isContentEditable||/INPUT|TEXTAREA|SELECT|BUTTON/.test(event.target?.tagName||''))return;
-    if(event.key==='Control') {if(slides[index].dataset.scene==='journey'){event.preventDefault();toggleJourneyAuto();}return;}
+    if(event.metaKey||event.altKey||event.target?.isContentEditable||/INPUT|TEXTAREA|SELECT|BUTTON/.test(event.target?.tagName||''))return;
+    // 두 번째 Shift도 repeat=true로 전달될 수 있음. Set으로 중복을 막고 반복 입력 차단보다 먼저 기록함.
     if(event.key==='Shift') {setShift(event,true);return;}
+    if(event.repeat)return;
+    if(event.key==='Control') {if(slides[index].dataset.scene==='journey'){event.preventDefault();toggleJourneyAuto();}return;}
     if(event.ctrlKey)return;
     if(['ArrowRight','ArrowDown','PageDown'].includes(event.key)||event.code==='Space'){event.preventDefault();forwardKey(event);}
     else if(['ArrowLeft','ArrowUp','PageUp'].includes(event.key)){event.preventDefault();previous();}
     else if(event.key==='Home'){event.preventDefault();show(0);}
     else if(event.key==='End'){event.preventDefault();show(slides.length-1,Number(slides.at(-1).dataset.steps)-1);}
+  }
+
+  /** 모든 Shift를 놓은 이벤트에서는 좌우 기록을 함께 비움. 한쪽 해제 이벤트가 생략돼도 배속이 남지 않음. */
+  function keyup(event) {
+    if(event.key!=='Shift')return;
+    if(event.shiftKey)setShift(event,false);
+    else clearShifts();
   }
 
   /** 인쇄 시 모든 장의 최종 상태를 그리고 종료 후 발표 위치 복원. */
@@ -800,7 +809,7 @@ const LaunchModel = (() => {
 
   /* === 초기화. 통신·재생 버튼 없음. 자동 반복은 06에서 Ctrl로 선택함 === */
   addEventListener('keydown',keydown);addEventListener('resize',resize);
-  addEventListener('keyup',event=>{if(event.key==='Shift')setShift(event,false);});
+  addEventListener('keyup',keyup);
   addEventListener('blur',()=>{clearShifts();lastForwardPress=-Infinity;});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){clearShifts();clearSlideTransition();stop();}else start();});
   reduced.addEventListener('change',()=>{clearSlideTransition();start();});
