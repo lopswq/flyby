@@ -196,7 +196,7 @@ docs/md/codex_start.md 읽고 진행해줘.
 - 관련 없는 미커밋 변경은 보존함. 임의로 stash·reset·restore하지 않음.
 - 사용자 확인이 필요한 경우 main 병합을 먼저 하지 않음.
 - README에는 실제로 구현된 실행 경로·조작·상태만 반영함.
-- 개인 작성용 `plan.md`, `design.md`, `progress.md`, `requirements.md`, `content.md`, `script.md`, `summary.md`는 자동으로 채우지 않음.
+- 개인 작성용 문서는 자동으로 채우지 않음.
 - 진행 기록은 아래 구역을 사용함. 문서마다 같은 대본이나 스토리보드를 복제하지 않음.
 
 ## 10. 완료 기준과 최종 보고

@@ -6,18 +6,11 @@ flyby/
 ├── docs/
 │   ├── README.md                     # 프로젝트 개요·문서 목차·실행 안내
 │   ├── resources/                    # 발표 원자료와 개인 작성 문서
-│   │   ├── textbook/                 # 교과서 본문 사진
-│   │   ├── content.md                # 발표 내용
-│   │   ├── script.md                 # 발표 대본
-│   │   └── summary.md                # 본문 및 개념 정리
+│   │   └── textbook/                 # 교과서 본문 사진
 │   └── md/                           # 기획·설계 문서
 │       ├── codex_start.md             # CLI HTML 제작 시작 지시서
 │       ├── flyby_presentation_plan.md # 현재 발표 구상 전체
-│       ├── animation.md              # 초기 v1 요구사항 원문
-│       ├── requirements.md           # 개인 작성용 요구사항 문서
-│       ├── plan.md                   # 개인 작성용 개발 계획 문서
-│       ├── design.md                 # 개인 작성용 디자인 문서
-│       └── progress.md               # 개인 작성용 진행 기록 문서
+│       └── animation.md              # 초기 v1 요구사항 원문
 ├── presentation/                     # 전체 HTML 발표 구현 위치
 │   ├── index.html
 │   ├── css/
