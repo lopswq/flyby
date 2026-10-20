@@ -12,7 +12,8 @@
 ## 사이트에서 발표 열기
 
 - 접속 주소: [플라이바이 발표](https://lopswq.github.io/flyby/).
-- 기본 주소의 `index.html`에서 `presentation/`으로 바로 이동함. 다른 컴퓨터에서도 브라우저로 접속함.
+- 기본 주소의 `index.html`에서 `presentation/`을 전체 화면 iframe으로 표시함. 주소창은 `/flyby/`를 유지함. 다른 컴퓨터에서도 브라우저로 접속함.
+- 프레임 로드 후 실제 발표에 키보드 초점을 연결함. 키가 반응하지 않으면 발표 화면을 한 번 클릭함.
 - 처음 남색 빈 화면에서 Space 한 번으로 표지를 엶. 이후 조작은 아래 키 안내와 상세 대본을 따름.
 - GitHub Pages 원본: `feat/ppt-static-design` 브랜치의 `/(root)`임. `.nojekyll`로 HTML·CSS·JavaScript·이미지를 그대로 게시함.
 - 실제 브라우저 조작·프로젝터 가독성은 사용자 확인 항목임.
