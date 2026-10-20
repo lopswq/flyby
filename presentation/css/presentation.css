@@ -1,5 +1,5 @@
 /* === 원본 PPT의 색상·글꼴·고정 무대 유지 === */
-:root { --stage-bg:#dce1e9; --slide-bg:#fff; --ink:#20344f; --blue:#427eb6; --muted:#68798f; --body:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; }
+:root { --stage-bg:#dce1e9; --slide-bg:#fff; --dark-slide-bg:#080f17; --ink:#20344f; --blue:#427eb6; --muted:#68798f; --body:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; }
 * { box-sizing:border-box; }
 /* ===========================================
    FIXED 16:9 STAGE: MANDATORY BASE STYLES
@@ -141,8 +141,8 @@ h1,h2,p { margin:0; }
 /* 장 전환은 JS의 Web Animations로 제어함. 단계별 글씨 공개와 재생 시계는 별개임. */
 .slide { transition:none; }
 .slide.leaving { visibility:visible; opacity:1; pointer-events:none; z-index:2; }
-.slide.blank { background:#000; }
-.deck-viewport:has(.blank.active) { background:#000; }
+/* 빈 화면도 표지·결론의 배경을 공유함. 무대 밖 여백까지 같은 남색으로 채움. */
+.deck-viewport:has(.blank.active) { background:var(--dark-slide-bg); }
 @media print {
     .slide { transform:none!important; }
 }
@@ -169,7 +169,7 @@ figcaption { color:#8a98a9; font-size:21px; line-height:1.5; padding-top:18px; }
 .step-visible { opacity:1; visibility:visible; }
 
 /* === 표지·결론은 원본과 같은 어두운 배경 === */
-.dark { --slide-bg:#080f17; background:var(--slide-bg); color:#fff; }
+.dark { --slide-bg:var(--dark-slide-bg); background:var(--slide-bg); color:#fff; }
 .dark .chapter,.dark footer,.closing-mark { color:#92adc6; }
 .cover h1 { top:272px; width:900px; font-size:120px; letter-spacing:-4px; }
 .cover-subtitle { position:absolute; left:114px; top:464px; width:820px; font-size:65px; line-height:1.4; font-weight:700; color:#afc0cf; }
